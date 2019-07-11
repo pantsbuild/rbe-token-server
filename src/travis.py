@@ -3,12 +3,12 @@ from __future__ import annotations
 import os
 from base64 import b64decode
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 from google.cloud import kms_v1
 
-DATE_MECHANISM_FIRST_ENABLED = datetime(year=2019, month=7, day=11)
+DATE_MECHANISM_FIRST_ENABLED = datetime(year=2019, month=7, day=11, tzinfo=timezone.utc)
 PANTSBUILD_PANTS_REPO_ID = 402860
 
 JobId = int
@@ -57,7 +57,8 @@ class TravisJob:
 
         def parse_datetime(iso_formatted_val: str, *, includes_milliseconds: bool) -> datetime:
             num_extraneous_chars = 5 if includes_milliseconds else 1
-            return datetime.fromisoformat(iso_formatted_val[:-num_extraneous_chars])
+            naive_datetime = datetime.fromisoformat(iso_formatted_val[:-num_extraneous_chars])
+            return naive_datetime.replace(tzinfo=timezone.utc)
 
         return TravisJob(
             id_=job_id,
