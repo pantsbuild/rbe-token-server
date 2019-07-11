@@ -36,8 +36,6 @@ def index() -> str:
 @app.route("/token/generate", methods=["POST"])
 def generate_token() -> str:
     travis_job = TravisJob.get_from_api(job_id=int(flask.request.get_json()["travis_job_id"]))
-    if travis_job is None:
-        flask.abort(500)
     if not travis_job.is_valid():
         flask.abort(404)
     return str(travis_job)
