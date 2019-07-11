@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from base64 import b64decode
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -21,12 +22,9 @@ class TravisJob:
 
     @classmethod
     def get_from_api(cls, job_id: JobId) -> Optional[TravisJob]:
-        travis_token = get_travis_token()
-        if travis_token is None:
-            return None
         travis_response = requests.get(
             f"https://api.travis-ci.org/job/{job_id}",
-            headers={"Travis-API-Version": "3", "Authorization": f"token {travis_token}"},
+            headers={"Travis-API-Version": "3", "Authorization": f"token {_get_travis_token()}"},
         )
         data = travis_response.json()
         try:
@@ -47,5 +45,15 @@ class TravisJob:
         )
 
 
-def get_travis_token() -> Optional[str]:
-    return os.getenv("TRAVIS_TOKEN")
+def _get_travis_token() -> str:
+    local_env_var = "TRAVIS_TOKEN"
+    gae_env_var = "TRAVIS_TOKEN_ENCRYPTED"
+    if gae_env_var not in os.environ and local_env_var not in os.environ:
+        raise OSError(
+            f"If running locally, you must set the env var `{local_env_var}` with your token "
+            "generated via `travis token`. If running via Google App Engine, the env var "
+            f"`{gae_env_var}` is not being properly picked up."
+        )
+    if gae_env_var in os.environ:
+        return b64decode(os.environ[gae_env_var]).decode()
+    return os.environ[local_env_var]
