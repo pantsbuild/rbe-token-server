@@ -43,6 +43,7 @@ class TravisJob:
     id_: JobId
     repo_id: int
     created_at: datetime
+    started_at: datetime
 
     @classmethod
     def get_from_api(cls, *, job_id: JobId) -> TravisJob:
@@ -53,10 +54,16 @@ class TravisJob:
         if not travis_response.ok:
             travis_response.raise_for_status()
         data = travis_response.json()
+
+        def parse_datetime(iso_formatted_val: str, *, includes_milliseconds: bool) -> datetime:
+            num_extraneous_chars = 5 if includes_milliseconds else 1
+            return datetime.fromisoformat(iso_formatted_val[:-num_extraneous_chars])
+
         return TravisJob(
             id_=job_id,
             repo_id=data["repository"]["id"],
-            created_at=datetime.fromisoformat(data["created_at"][:-5]),
+            created_at=parse_datetime(data["created_at"], includes_milliseconds=True),
+            started_at=parse_datetime(data["started_at"], includes_milliseconds=False),
         )
 
     def is_valid(self) -> bool:
