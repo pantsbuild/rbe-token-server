@@ -4,15 +4,24 @@ import os
 from base64 import b64decode
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import Enum
 
 import requests
 from google.cloud import kms_v1
 
 DATE_MECHANISM_FIRST_ENABLED = datetime(year=2019, month=7, day=15, tzinfo=timezone.utc)
 PANTSBUILD_PANTS_REPO_ID = 402860
-REMOTE_SHARD_NUMBERS = [5, 6]
 
 JobId = int
+
+
+class Stage(Enum):
+    daily = "Test Pants"
+    cron = "Test Pants (Cron)"
+
+    def valid_shard_number(self, shard_number: int) -> bool:
+        valid_shards = [3, 5, 6] if self == Stage.daily else [5, 7, 8]
+        return shard_number in valid_shards
 
 
 def _get_travis_token() -> str:
@@ -46,6 +55,7 @@ class TravisJob:
     created_at: datetime
     started_at: datetime
     shard_number: int
+    stage: Stage
 
     @classmethod
     def get_from_api(cls, *, job_id: JobId) -> TravisJob:
@@ -68,11 +78,12 @@ class TravisJob:
             created_at=parse_datetime(data["created_at"], includes_milliseconds=True),
             started_at=parse_datetime(data["started_at"], includes_milliseconds=False),
             shard_number=int(data["number"].split(".")[1]),
+            stage=Stage(data["stage"]["name"]),
         )
 
     def is_valid(self) -> bool:
         return (
             self.repo_id == PANTSBUILD_PANTS_REPO_ID
             and self.created_at >= DATE_MECHANISM_FIRST_ENABLED
-            and self.shard_number in REMOTE_SHARD_NUMBERS
+            and self.stage.valid_shard_number(self.shard_number)
         )
